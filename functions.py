@@ -1,3 +1,6 @@
+import random
+
+
 def avoid_body(my_head, body, is_move_safe):
   up = {"x": my_head["x"], "y": my_head["y"] + 1}
   down = {"x": my_head["x"], "y": my_head["y"] - 1}
@@ -27,3 +30,30 @@ def avoid_walls(my_head, board_width, board_height, is_move_safe):
   if my_head["y"] < 1:
     is_move_safe["down"] = False
 
+
+def find_closest_food(my_head, foods, safe_moves):
+  if len(foods) == 0:
+    return random.choice(safe_moves)  # default
+
+  closest = foods[0]
+  closestDist = (abs(my_head["x"] - foods[0]["x"])) + (abs(my_head["y"] - foods[0]["y"]))
+
+  for food in foods:
+    currDist = (abs(my_head["x"] - food["x"])) + (abs(my_head["y"] - food["y"]))
+
+    if currDist < closestDist:
+      closestDist = currDist
+      closest = food
+
+  if closest["y"] > my_head["y"] and "up" in safe_moves:
+    next_move = "up"
+  elif closest["y"] < my_head["y"] and "down" in safe_moves:
+    next_move = "down"
+  elif closest["x"] < my_head["x"] and "left" in safe_moves:
+    next_move = "left"
+  elif closest["x"] > my_head["x"] and "right" in safe_moves:
+    next_move = "right"
+  else:
+    next_move = random.choice(safe_moves)  # default
+
+  return next_move
