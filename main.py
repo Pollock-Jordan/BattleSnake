@@ -1,5 +1,7 @@
 import typing
 import functions
+import dijkstra
+import flood
 
 
 def info() -> typing.Dict:
@@ -27,6 +29,7 @@ def move(game_state: typing.Dict) -> typing.Dict:
 
   my_head = game_state["you"]["body"][0]
   my_body = game_state['you']['body']
+  my_tail = game_state["you"]["body"][len(game_state["you"]["body"]) - 1]
 
   board_width = game_state['board']['width']
   board_height = game_state['board']['height']
@@ -53,6 +56,40 @@ def move(game_state: typing.Dict) -> typing.Dict:
   # Move towards food or random
   food = game_state['board']['food']
   next_move = functions.find_closest_food(my_head, food, safe_moves)
+
+  # Generate an adjacency matrix for the given board -A
+  g = dijkstra.generate_graph(my_head, board_width, [], opponents)
+  # g.print()
+
+  # Run Dijkstra's algo. from head location -A
+  int_head_location = dijkstra.coords_to_int(my_head, board_width)
+  # g.dijkstra(int_head_location)
+
+  #Doing flood assessments to prevent getting stuck in corners or in self
+  #my own body is included in oppoents
+  #only bother checking if there is more than one safe move to check
+  #only bother checking if there is more than one safe move to check
+  if len(safe_moves) > 1:
+    flood_board = flood.FloodBoard(opponents, board_width, board_height)
+    safety_value = flood_board.make_assessment(next_move)
+
+    if safety_value < 121:
+      next_move = functions.find_closest_food(my_head, [my_tail], safe_moves)
+      safety_value = flood_board.make_assessment(next_move)
+
+      if safety_value < 121:
+        move_safety_values = []
+        for move in safe_moves:
+          safety_value = flood_board.make_assessment(move)
+          move_safety_values.append([move, safety_value])
+
+        highest_index = 0
+        highest = 0
+        for i in range(len(move_safety_values)):
+          if move_safety_values[i][1] > highest:
+            highest_index = i
+
+        next_move = move_safety_values[highest_index][0]
 
   print(f"MOVE {game_state['turn']}: {next_move}")
   return {"move": next_move}
