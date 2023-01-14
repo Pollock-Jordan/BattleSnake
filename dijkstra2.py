@@ -25,24 +25,32 @@ class DijkstraHelper:
     self.graph = self.__create_graph()
     self.dist, self.paths = self.__dijkstra()
 
-  def find_move_to_closest_food(self, foods):
+  def get_closest_food(self, foods):
     if len(foods) == 0:
       return None
 
-    closest = foods[0]
+    closest_food = foods[0]
     for food in foods:
-      closest_dist = self.distance_to(closest)
+      closest_dist = self.distance_to(closest_food)
       curr_dist = self.distance_to(food)
 
       if curr_dist < closest_dist:
-        closest = food
+        closest_food = food
 
-    if not self.path_exists(closest):
+    if not self.path_exists(closest_food):
       # Should only happen if no food is reachable
       return None
 
-    return self.get_next_move_towards(closest)
+    return closest_food
 
+  def find_move_to_closest_food(self, foods):
+    closest_food = self.get_closest_food(foods)
+
+    if closest_food is not None:
+      return self.get_next_move_towards(closest_food)
+    else:
+      return None
+  
   def path_exists(self, dest):
     return self.paths[dest["y"]][dest["x"]] is not None
 
@@ -91,46 +99,31 @@ class DijkstraHelper:
 
     return safe_moves
 
-  def flood_fill(self, node):
-    visited = []
-    vertices = SimpleQueue()
-    vertices.put(node)
+  def get_flood_score(self):
+    visited = [[False for row in range(self.height)] for col in range(self.width)]
+    vertices = [self.my_head]
 
     count = 0
-    while not vertices.empty():
-      curr = vertices.get()
+    while len(vertices) > 0:
+      curr = vertices.pop()
 
       if self.path_exists(curr):
-        count = count + 1
-        visited.append(curr)
-        neighbours = self.__get_neighbours(curr)
+        count += 1
+        visited[curr["y"]][curr["x"]] = True
+        neighbours = self.__get_neighbours(curr, self.graph)
 
         for neighbour in neighbours:
-          if neighbour not in visited:
-            vertices.put(neighbour)
+          if not visited[neighbour["y"]][neighbour["x"]]:
+            vertices.append(neighbour)
 
     return count
 
-  def two_areas_exist(self, safe_spaces):
-    if len(safe_spaces) != 2:
-      return False
-    
-    # Up and down are open, left and right are blocked
-    if "up" in safe_spaces and "down" in safe_spaces:
-      return True
-    
-    # Left and right are open, up and down are blocked
-    if "left" in safe_spaces and "right" in safe_spaces:
-      return True
+  def node_contains_food(self, node, foods):
+    for food in foods:
+      if node == food:
+        return True
 
     return False
-
-  def three_areas_exist(self, safe_spaces):
-    if len(safe_spaces) != 3:
-      return False
-
-    last_move = self.my_body[1]
-    
 
   def __create_graph(self):
     graph = [["O" for row in range(self.height)] for col in range(self.width)]
@@ -165,7 +158,8 @@ class DijkstraHelper:
     return graph
 
   def __dijkstra(self):
-    dist = [[sys.maxsize for row in range(self.height)] for col in range(self.width)]
+    dist = [[sys.maxsize for row in range(self.height)]
+            for col in range(self.width)]
     paths = [[None for row in range(self.height)] for col in range(self.width)]
 
     dist[self.my_head["y"]][self.my_head["x"]] = 0

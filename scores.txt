@@ -1,0 +1,4 @@
+Tail              69
+Food              10
+Open space        # of squares
+Bonus: Enemy head        -10

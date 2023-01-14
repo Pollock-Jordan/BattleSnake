@@ -1,86 +1,77 @@
-import random
-# https://www.geeksforgeeks.org/python-program-for-dijkstras-shortest-path-algorithm-greedy-algo-7/
-# https://www.udacity.com/blog/2021/10/implementing-dijkstras-algorithm-in-python.html?fbclid=IwAR2C2bxTj2xI3U_GsNqYrgW47rUcLGpwuE7iFtMPXfOQ6RMIv-5X4yO9XXw
+import sys
+from copy import deepcopy
+from dijkstra2 import DijkstraHelper
 
 
-def avoid_body(my_head, body, is_move_safe):
-  up = {"x": my_head["x"], "y": my_head["y"] + 1}
-  down = {"x": my_head["x"], "y": my_head["y"] - 1}
-  right = {"x": my_head["x"] + 1, "y": my_head["y"]}
-  left = {"x": my_head["x"] - 1, "y": my_head["y"]}
+def get_new_snake_given_move(snake, move, foods):
+  new_head = get_new_head_given_move(snake[0], move)
+  will_eat_food = new_head in foods
+  snake.insert(0, new_head)
 
-  if up in body:
-    is_move_safe["up"] = False
-  if down in body:
-    is_move_safe["down"] = False
-  if right in body:
-    is_move_safe["right"] = False
-  if left in body:
-    is_move_safe["left"] = False
+  if not will_eat_food:
+    snake.pop()
+
+  return snake
 
 
-def avoid_walls(my_head, board_width, board_height, is_move_safe):
-  if my_head["x"] > (board_width - 2):
-    print("right edge detected")
-    is_move_safe["right"] = False
-  if my_head["x"] < 1:
-    print("left edge detected")
-    is_move_safe["left"] = False
-  if my_head["y"] > (board_height - 2):
-    print("top edge detected")
-    is_move_safe["up"] = False
-  if my_head["y"] < 1:
-    is_move_safe["down"] = False
-
-
-def find_closest_food(my_head, foods, safe_moves):
-  if len(foods) == 0:
-    return random.choice(safe_moves)  # default
-
-  closest = foods[0]
-  closest_dist = abs(my_head["x"] - foods[0]["x"]) + abs(my_head["y"] -
-                                                         foods[0]["y"])
-
-  for food in foods:
-    curr_dist = abs(my_head["x"] - food["x"]) + abs(my_head["y"] - food["y"])
-
-    if curr_dist < closest_dist:
-      closest_dist = curr_dist
-      closest = food
-
-  if closest["y"] > my_head["y"] and "up" in safe_moves:
-    next_move = "up"
-  elif closest["y"] < my_head["y"] and "down" in safe_moves:
-    next_move = "down"
-  elif closest["x"] < my_head["x"] and "left" in safe_moves:
-    next_move = "left"
-  elif closest["x"] > my_head["x"] and "right" in safe_moves:
-    next_move = "right"
+def get_new_head_given_move(my_head, move):
+  if move == "up":
+    return {"x": my_head["x"], "y": my_head["y"] + 1}
+  elif move == "down":
+    return {"x": my_head["x"], "y": my_head["y"] - 1}
+  elif move == "right":
+    return {"x": my_head["x"] + 1, "y": my_head["y"]}
+  elif move == "left":
+    return {"x": my_head["x"] - 1, "y": my_head["y"]}
   else:
-    next_move = random.choice(safe_moves)  # default
-
-  return next_move
+    return my_head
 
 
-#returns a new list of all the food on the board without the closest
-def remove_closest_food(my_head, foods, safe_moves):
-  if len(foods) == 0:
-    return random.choice(safe_moves)  # default
+def super_evaluator(safe_moves, my_snake, opponents, foods, height, width):
+  results = []
+  for move in safe_moves:
+    my_new_snake = deepcopy(my_snake)
+    my_new_snake["body"] = get_new_snake_given_move(my_snake["body"], move, foods)
+    my_new_tail = my_new_snake["body"][-1]
+    snakes = [my_new_snake] + opponents
 
-  closest = foods[0]
-  closest_dist = abs(my_head["x"] - foods[0]["x"]) + abs(my_head["y"] -
-                                                         foods[0]["y"])
+    dijkstra = DijkstraHelper(my_new_snake, snakes, height, width)
+    closest_food = dijkstra.get_closest_food(foods)
 
-  for food in foods:
-    curr_dist = abs(my_head["x"] - food["x"]) + abs(my_head["y"] - food["y"])
+    if closest_food is None:
+      distance_to_closest_food = sys.maxsize
+    else:
+      distance_to_closest_food = dijkstra.distance_to(closest_food)
 
-    if curr_dist < closest_dist:
-      closest_dist = curr_dist
-      closest = food
+    results.append({
+      "move": move,
+      "distance_to_closest_food": distance_to_closest_food,
+      "path_to_tail_exists": dijkstra.path_exists(my_new_tail),
+      "flood_score": dijkstra.get_flood_score()
+    })
 
-  new_food_list = []
-  for food in foods:
-    if food["x"] != closest["x"] and food["y"] != closest["y"]:
-      new_food_list.append(food)
+  highest_flood_score = -1
+  highest_flood_score_index = 0
+  for i, result in enumerate(results):
+    if result["flood_score"] > highest_flood_score:
+      highest_flood_score = result["flood_score"]
+      highest_flood_score_index = i
 
-  return new_food_list
+  # Potential danger, try to move to safety
+  if highest_flood_score < 10:
+    for result in results:
+      if result["path_to_tail_exists"]:
+        print("flood score low -- going to tail")
+        return result["move"]
+    print("flood score low -- going to largest space")
+    return results[highest_flood_score_index]["move"]
+
+  # Go to the closest food
+  closest_food = sys.maxsize
+  closest_food_index = 0
+  for i, result in enumerate(results):
+    if result["distance_to_closest_food"] < closest_food:
+      closest_food = result["distance_to_closest_food"]
+      closest_food_index = i
+
+  return results[closest_food_index]["move"]

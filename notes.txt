@@ -1,0 +1,14 @@
+1. Evaluate Dijkstra's for our current head position.
+2. For each safe move, create a simulated board state,
+   where in addition to our move, all of our opponents
+   have one move simulated (towards their closest food
+   that doesn't conflict with anyone else's move, taking
+   into account (1) if they ate food or (2) if they died).
+3. For each simulated board state, run Dijkstra's and flood fill.
+4. With the information provided by Dijkstra's and flood fill,
+   assign a score to each simulated board state. Make the move
+   that corresponds to the simulated board state with the best
+   score.
+
+Number of Dijkstra's runs = number of safe moves * number of opponents
+Number of flood fills = number of safe moves
