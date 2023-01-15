@@ -1,5 +1,5 @@
 import sys
-from queue import PriorityQueue, SimpleQueue
+from queue import PriorityQueue
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -13,14 +13,16 @@ class PrioritizedItem:
 
 class DijkstraHelper:
 
-  def __init__(self, my_snake, snakes, height, width):
+  def __init__(self, my_snake, snakes, height, width, ate_food=False):
     self.my_snake_id = my_snake["id"]
+    self.my_snake_length = my_snake["length"]
     self.my_head = my_snake["head"]
     self.my_body = my_snake["body"]
     self.my_tail = my_snake["body"][-1]
     self.snakes = snakes
     self.height = height
     self.width = width
+    self.ate_food = ate_food
 
     self.graph = self.__create_graph()
     self.dist, self.paths = self.__dijkstra()
@@ -50,7 +52,7 @@ class DijkstraHelper:
       return self.get_next_move_towards(closest_food)
     else:
       return None
-  
+
   def path_exists(self, dest):
     return self.paths[dest["y"]][dest["x"]] is not None
 
@@ -100,21 +102,13 @@ class DijkstraHelper:
     return safe_moves
 
   def get_flood_score(self):
-    visited = [[False for row in range(self.height)] for col in range(self.width)]
-    vertices = [self.my_head]
-
     count = 0
-    while len(vertices) > 0:
-      curr = vertices.pop()
+    for row in range(self.height):
+      for col in range(self.width):
+        path = self.paths[row][col]
 
-      if self.path_exists(curr):
-        count += 1
-        visited[curr["y"]][curr["x"]] = True
-        neighbours = self.__get_neighbours(curr, self.graph)
-
-        for neighbour in neighbours:
-          if not visited[neighbour["y"]][neighbour["x"]]:
-            vertices.append(neighbour)
+        if path is not None and path != "H":
+          count = count + 1
 
     return count
 
@@ -139,6 +133,13 @@ class DijkstraHelper:
       if snake["id"] == self.my_snake_id:
         continue
 
+      # Ignore weak enemies that are close to us, we can crush them
+      enemy_head = snake["head"]
+      enemy_length = snake["length"]
+      head_dist = abs(self.my_head["x"] - enemy_head["x"]) + abs(self.my_head["y"] - enemy_head["y"])
+      if enemy_length < self.my_snake_length and head_dist == 2:
+        continue
+
       enemy_head = snake["head"]
       enemy_head_neighbours = self.__get_neighbours(enemy_head, graph)
 
@@ -151,9 +152,10 @@ class DijkstraHelper:
     my_head_col = self.my_head["x"]
     graph[my_head_row][my_head_col] = "H"
 
-    my_tail_row = self.my_tail["y"]
-    my_tail_col = self.my_tail["x"]
-    graph[my_tail_row][my_tail_col] = "O"
+    if not self.ate_food:
+      my_tail_row = self.my_tail["y"]
+      my_tail_col = self.my_tail["x"]
+      graph[my_tail_row][my_tail_col] = "O"
 
     return graph
 
